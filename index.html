@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Watch Party 🎬</title>
+<!-- YouTube IFrame API -->
+<script src="https://www.youtube.com/iframe_api"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0a0a0f;
+  --surface: #13131c;
+  --surface2: #1c1c2a;
+  --border: #2a2a3d;
+  --accent: #e8ff47;
+  --accent2: #ff6b6b;
+  --accent3: #ff6b35;
+  --blue: #4a9eff;
+  --text: #f0f0f8;
+  --muted: #6b6b8a;
+  --chat-bg: #0f0f18;
+}
+
+body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; height:100vh; overflow:hidden; display:flex; flex-direction:column; }
+
+/* ── JOIN SCREEN ── */
+#joinScreen {
+  position:fixed; inset:0; background:var(--bg); display:flex; align-items:center; justify-content:center; z-index:100;
+  background-image: radial-gradient(ellipse 60% 60% at 50% 0%, rgba(232,255,71,0.07) 0%, transparent 70%);
+}
+.join-card { background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:44px 38px; width:460px; position:relative; overflow:hidden; }
+.join-card::before { content:''; position:absolute; top:0; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,var(--accent),transparent); }
+.join-logo { font-family:'Syne',sans-serif; font-size:28px; font-weight:800; letter-spacing:-1px; margin-bottom:6px; }
+.join-logo span { color:var(--accent); }
+.join-sub { color:var(--muted); font-size:14px; margin-bottom:28px; }
+.field { margin-bottom:14px; }
+.field label { display:block; font-size:11px; font-weight:500; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:7px; }
+.field input { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:11px 15px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:15px; outline:none; transition:border-color 0.2s; }
+.field input:focus { border-color:var(--accent); }
+.field input.error { border-color:var(--accent2); animation:shake 0.35s; }
+@keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+.role-toggle { display:flex; gap:8px; }
+.role-btn { flex:1; padding:11px 8px; border-radius:10px; border:1px solid var(--border); background:var(--surface2); color:var(--muted); font-family:'DM Sans',sans-serif; font-size:13px; font-weight:500; cursor:pointer; transition:all 0.2s; text-align:center; }
+.role-btn.active { border-color:var(--accent); color:var(--accent); background:rgba(232,255,71,0.08); }
+#hostPasswordWrap { max-height:0; overflow:hidden; opacity:0; transition:max-height 0.3s ease,opacity 0.3s ease; }
+#hostPasswordWrap.visible { max-height:80px; opacity:1; margin-top:12px; }
+.pw-hint { font-size:11px; color:var(--muted); margin-top:5px; font-style:italic; }
+.join-btn { width:100%; padding:14px; background:var(--accent); color:#0a0a0f; border:none; border-radius:10px; font-family:'Syne',sans-serif; font-size:16px; font-weight:700; cursor:pointer; transition:all 0.2s; margin-top:16px; }
+.join-btn:hover { transform:translateY(-1px); box-shadow:0 8px 24px rgba(232,255,71,0.25); }
+.join-btn:active { transform:translateY(0); }
+
+/* ── MAIN APP ── */
+#app { display:none; flex:1; flex-direction:column; height:100vh; overflow:hidden; }
+#app.visible { display:flex; }
+
+.topbar { height:52px; background:var(--surface); border-bottom:1px solid var(--border); display:flex; align-items:center; padding:0 18px; gap:14px; flex-shrink:0; z-index:10; }
+.topbar-logo { font-family:'Syne',sans-serif; font-weight:800; font-size:16px; letter-spacing:-0.5px; }
+.topbar-logo span { color:var(--accent); }
+.room-badge { background:var(--surface2); border:1px solid var(--border); border-radius:6px; padding:3px 10px; font-size:12px; color:var(--muted); }
+.room-badge strong { color:var(--text); }
+.members-row { display:flex; align-items:center; gap:5px; margin-left:auto; }
+.member-chip { background:var(--surface2); border:1px solid var(--border); border-radius:20px; padding:3px 10px 3px 6px; font-size:12px; display:flex; align-items:center; gap:5px; color:var(--muted); }
+.member-chip.host { border-color:var(--accent); color:var(--accent); }
+.member-dot { width:6px; height:6px; border-radius:50%; background:#3ddc84; }
+.host-tag { font-size:9px; background:var(--accent); color:#0a0a0f; padding:1px 4px; border-radius:4px; font-weight:700; }
+.mode-badge { font-size:10px; border-radius:6px; padding:2px 8px; font-weight:700; letter-spacing:0.5px; }
+.mode-badge.local  { background:rgba(74,158,255,0.2); color:var(--blue); border:1px solid rgba(74,158,255,0.3); }
+.mode-badge.youtube{ background:rgba(255,107,53,0.2); color:var(--accent3); border:1px solid rgba(255,107,53,0.3); }
+.mode-badge.webrtc { background:rgba(61,220,132,0.15); color:#3ddc84; border:1px solid rgba(61,220,132,0.3); }
+.fs-btn { background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); padding:5px 12px; font-size:13px; cursor:pointer; transition:all 0.15s; font-family:'DM Sans',sans-serif; }
+.fs-btn:hover { border-color:var(--accent); color:var(--accent); }
+
+.main-area { display:flex; flex:1; overflow:hidden; }
+
+/* ── VIDEO SIDE ── */
+.video-side { flex:1; display:flex; flex-direction:column; background:#000; overflow:hidden; position:relative; }
+
+/* ── MODE PICKER (host only, shown before mode is selected) ── */
+#modePicker { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:24px; padding:32px; background:var(--bg); }
+.mode-picker-title { font-family:'Syne',sans-serif; font-size:22px; font-weight:800; text-align:center; }
+.mode-picker-sub { color:var(--muted); font-size:14px; text-align:center; }
+.mode-cards { display:flex; gap:16px; flex-wrap:wrap; justify-content:center; max-width:760px; }
+.mode-card {
+  background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:28px 24px;
+  width:220px; cursor:pointer; transition:all 0.25s; text-align:center; position:relative; overflow:hidden;
+}
+.mode-card::before { content:''; position:absolute; inset:0; opacity:0; transition:opacity 0.25s; }
+.mode-card.local::before  { background:radial-gradient(circle at 50% 0%, rgba(74,158,255,0.12),transparent 70%); }
+.mode-card.youtube::before{ background:radial-gradient(circle at 50% 0%, rgba(255,107,53,0.12),transparent 70%); }
+.mode-card.webrtc::before { background:radial-gradient(circle at 50% 0%, rgba(232,255,71,0.10),transparent 70%); }
+.mode-card:hover { transform:translateY(-4px); }
+.mode-card:hover::before { opacity:1; }
+.mode-card.local:hover   { border-color:var(--blue); }
+.mode-card.youtube:hover { border-color:var(--accent3); }
+.mode-card.webrtc:hover  { border-color:var(--accent); }
+.mode-icon { font-size:40px; margin-bottom:12px; display:block; }
+.mode-name { font-family:'Syne',sans-serif; font-size:17px; font-weight:700; margin-bottom:8px; }
+.mode-desc { font-size:12px; color:var(--muted); line-height:1.5; }
+.mode-tag  { display:inline-block; font-size:10px; font-weight:700; letter-spacing:0.5px; padding:2px 7px; border-radius:4px; margin-top:10px; }
+.mode-card.local   .mode-tag { background:rgba(74,158,255,0.2); color:var(--blue); }
+.mode-card.youtube .mode-tag { background:rgba(255,107,53,0.2); color:var(--accent3); }
+.mode-card.webrtc  .mode-tag { background:rgba(232,255,71,0.15); color:var(--accent); }
+
+/* ── GUEST WAITING SCREEN ── */
+#guestWaiting { flex:1; display:none; flex-direction:column; align-items:center; justify-content:center; gap:16px; background:var(--bg); }
+.waiting-icon { font-size:56px; animation:bounce 1.8s ease-in-out infinite; }
+@keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+.waiting-title { font-family:'Syne',sans-serif; font-size:20px; font-weight:700; }
+.waiting-sub { color:var(--muted); font-size:14px; }
+
+/* ── YOUTUBE URL ENTRY (shown when host picks youtube mode) ── */
+#ytEntry { flex:1; display:none; flex-direction:column; align-items:center; justify-content:center; gap:20px; background:var(--bg); padding:32px; }
+.yt-icon { font-size:56px; }
+.yt-title { font-family:'Syne',sans-serif; font-size:22px; font-weight:800; }
+.yt-input-row { display:flex; gap:10px; width:100%; max-width:540px; }
+.yt-input { flex:1; background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:12px 16px; color:var(--text); font-size:15px; font-family:'DM Sans',sans-serif; outline:none; transition:border-color 0.2s; }
+.yt-input:focus { border-color:var(--accent3); }
+.yt-load-btn { background:var(--accent3); color:#fff; border:none; border-radius:10px; padding:12px 22px; font-family:'Syne',sans-serif; font-size:15px; font-weight:700; cursor:pointer; transition:all 0.2s; white-space:nowrap; }
+.yt-load-btn:hover { box-shadow:0 4px 16px rgba(255,107,53,0.4); transform:translateY(-1px); }
+.yt-hint { color:var(--muted); font-size:13px; }
+
+/* ── WEBRTC UPLOAD (host uploads, guests see progress) ── */
+#webrtcUpload { flex:1; display:none; flex-direction:column; align-items:center; justify-content:center; gap:16px; background:var(--bg); padding:32px; }
+.webrtc-icon { font-size:52px; }
+.webrtc-title { font-family:'Syne',sans-serif; font-size:22px; font-weight:800; text-align:center; }
+.webrtc-sub { color:var(--muted); font-size:13px; text-align:center; max-width:420px; line-height:1.6; }
+.webrtc-upload-btn { background:var(--accent); color:#0a0a0f; border:none; border-radius:10px; padding:13px 28px; font-family:'Syne',sans-serif; font-size:15px; font-weight:700; cursor:pointer; transition:all 0.2s; }
+.webrtc-upload-btn:hover { box-shadow:0 4px 16px rgba(232,255,71,0.3); transform:translateY(-1px); }
+#webrtcFileInput { display:none; }
+
+/* Guest receiving progress */
+#guestReceiving { flex:1; display:none; flex-direction:column; align-items:center; justify-content:center; gap:16px; background:var(--bg); padding:32px; }
+.recv-title { font-family:'Syne',sans-serif; font-size:20px; font-weight:700; text-align:center; }
+.recv-sub { color:var(--muted); font-size:13px; }
+.progress-track { width:100%; max-width:400px; height:8px; background:var(--surface2); border-radius:4px; overflow:hidden; }
+.progress-fill-bar { height:100%; background:var(--accent); border-radius:4px; transition:width 0.3s; width:0%; }
+.recv-pct { font-family:'Syne',sans-serif; font-size:28px; font-weight:800; color:var(--accent); }
+.recv-detail { font-size:12px; color:var(--muted); }
+
+/* ── LOCAL UPLOAD (original mode) ── */
+.upload-area { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; border:2px dashed var(--border); margin:20px; border-radius:16px; cursor:pointer; transition:all 0.3s; background:var(--surface); gap:10px; }
+.upload-area:hover { border-color:var(--accent); background:rgba(232,255,71,0.03); }
+.upload-area.drag { border-color:var(--accent); background:rgba(232,255,71,0.06); }
+.upload-icon { font-size:44px; }
+.upload-title { font-family:'Syne',sans-serif; font-size:18px; font-weight:700; }
+.upload-sub { color:var(--muted); font-size:13px; }
+#localFileInput { display:none; }
+
+/* ── VIDEO PLAYER ── */
+.video-container { flex:1; display:none; flex-direction:column; background:#000; position:relative; overflow:hidden; }
+.video-container.visible { display:flex; }
+video { width:100%; flex:1; object-fit:contain; background:#000; }
+#ytPlayer { width:100%; flex:1; background:#000; border:none; }
+
+/* ── FLOATING EMOJI ── */
+.floating-emoji { position:absolute; font-size:40px; pointer-events:none; z-index:50; user-select:none; filter:drop-shadow(0 2px 10px rgba(0,0,0,0.5)); animation:floatUp var(--dur,3s) ease-out forwards; }
+@keyframes floatUp {
+  0%   { opacity:0; transform:translateY(0) scale(0.4) rotate(-15deg); }
+  15%  { opacity:1; transform:translateY(-30px) scale(1.3) rotate(8deg); }
+  50%  { opacity:1; transform:translateY(-120px) scale(1.05) rotate(-5deg); }
+  100% { opacity:0; transform:translateY(-280px) scale(0.7) rotate(10deg); }
+}
+
+/* ── CONTROLS ── */
+.controls { background:var(--surface); border-top:1px solid var(--border); padding:12px 18px; display:flex; flex-direction:column; gap:9px; flex-shrink:0; }
+.progress-bar { width:100%; height:4px; background:var(--surface2); border-radius:2px; cursor:pointer; transition:height 0.15s; }
+.progress-bar:hover { height:7px; }
+.progress-fill { height:100%; background:var(--accent); border-radius:2px; transition:width 0.1s linear; pointer-events:none; }
+.controls-row { display:flex; align-items:center; gap:8px; }
+.ctrl-btn { background:none; border:1px solid var(--border); border-radius:8px; color:var(--text); padding:6px 13px; cursor:pointer; font-size:13px; transition:all 0.15s; font-family:'DM Sans',sans-serif; white-space:nowrap; }
+.ctrl-btn:hover { border-color:var(--accent); color:var(--accent); }
+.ctrl-btn:disabled { opacity:0.3; cursor:not-allowed; }
+.ctrl-btn.primary { background:var(--accent); color:#0a0a0f; border-color:transparent; font-weight:600; }
+.ctrl-btn.primary:hover { box-shadow:0 0 16px rgba(232,255,71,0.3); color:#0a0a0f; }
+.ctrl-btn.primary:disabled { background:var(--surface2); color:var(--muted); box-shadow:none; }
+.time-display { font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; margin-left:auto; }
+.host-label { font-size:11px; color:var(--muted); border:1px solid var(--border); border-radius:6px; padding:2px 8px; white-space:nowrap; }
+.host-label.you { color:var(--accent); border-color:rgba(232,255,71,0.3); }
+
+/* ── EMOJI STRIP ── */
+.emoji-strip { display:flex; align-items:center; gap:4px; padding:6px 18px; background:var(--surface); border-top:1px solid var(--border); flex-shrink:0; overflow-x:auto; scrollbar-width:none; }
+.emoji-strip::-webkit-scrollbar { display:none; }
+.emoji-strip-label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.8px; margin-right:4px; white-space:nowrap; flex-shrink:0; }
+.emo-btn { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:4px 7px; font-size:19px; cursor:pointer; transition:all 0.15s; flex-shrink:0; line-height:1; }
+.emo-btn:hover { transform:scale(1.3); border-color:var(--accent); background:rgba(232,255,71,0.08); }
+.emo-btn:active { transform:scale(0.9); }
+
+/* ── FULLSCREEN ── */
+:fullscreen .controls, :-webkit-full-screen .controls,
+:fullscreen .emoji-strip, :-webkit-full-screen .emoji-strip { display:none !important; }
+:fullscreen .topbar, :-webkit-full-screen .topbar { display:none; }
+:fullscreen .chat-side, :-webkit-full-screen .chat-side { display:none; }
+
+.fs-overlay { display:none; position:absolute; bottom:0; left:0; right:0; padding:32px 18px 15px; background:linear-gradient(transparent,rgba(0,0,0,0.88)); flex-direction:column; gap:9px; z-index:30; opacity:0; transition:opacity 0.3s; pointer-events:none; }
+:fullscreen .fs-overlay, :-webkit-full-screen .fs-overlay { display:flex; }
+.fs-overlay.show { opacity:1; pointer-events:all; }
+.fs-emoji-row { display:flex; gap:4px; flex-wrap:wrap; }
+.fs-emo-btn { background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.15); border-radius:8px; padding:4px 7px; font-size:19px; cursor:pointer; transition:all 0.15s; line-height:1; backdrop-filter:blur(4px); }
+.fs-emo-btn:hover { transform:scale(1.3); border-color:var(--accent); background:rgba(232,255,71,0.15); }
+.fs-progress { width:100%; height:4px; background:rgba(255,255,255,0.2); border-radius:2px; cursor:pointer; transition:height 0.15s; }
+.fs-progress:hover { height:7px; }
+.fs-progress-fill { height:100%; background:var(--accent); border-radius:2px; pointer-events:none; transition:width 0.1s linear; }
+.fs-controls-row { display:flex; align-items:center; gap:8px; }
+.fs-ctrl-btn { background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.18); border-radius:8px; color:#fff; padding:6px 13px; cursor:pointer; font-size:13px; font-family:'DM Sans',sans-serif; transition:all 0.15s; backdrop-filter:blur(4px); white-space:nowrap; }
+.fs-ctrl-btn:hover { background:rgba(232,255,71,0.2); border-color:var(--accent); color:var(--accent); }
+.fs-ctrl-btn:disabled { opacity:0.3; cursor:not-allowed; }
+.fs-ctrl-btn.primary { background:var(--accent); color:#0a0a0f; font-weight:700; border-color:transparent; }
+.fs-ctrl-btn.primary:hover { box-shadow:0 0 16px rgba(232,255,71,0.4); color:#0a0a0f; }
+.fs-ctrl-btn.primary:disabled { background:rgba(255,255,255,0.2); color:rgba(255,255,255,0.4); }
+.fs-time { font-size:12px; color:rgba(255,255,255,0.7); font-variant-numeric:tabular-nums; margin-left:auto; }
+.fs-exit-btn { background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:8px; color:rgba(255,255,255,0.8); padding:6px 12px; cursor:pointer; font-size:13px; font-family:'DM Sans',sans-serif; transition:all 0.15s; backdrop-filter:blur(4px); }
+.fs-exit-btn:hover { background:rgba(255,80,80,0.3); border-color:var(--accent2); color:#fff; }
+
+/* ── FULLSCREEN FLOATING CHAT ── */
+#fsChatStream { display:none; position:absolute; right:14px; bottom:185px; width:270px; max-height:42vh; flex-direction:column; justify-content:flex-end; gap:5px; z-index:25; pointer-events:none; overflow:hidden; }
+:fullscreen #fsChatStream, :-webkit-full-screen #fsChatStream { display:flex; }
+.fs-chat-msg { display:flex; flex-direction:column; align-items:flex-end; animation:fsMsgIn 0.25s ease forwards; }
+@keyframes fsMsgIn { from{opacity:0;transform:translateX(18px)} to{opacity:1;transform:translateX(0)} }
+.fs-chat-msg.fading { animation:fsMsgOut 0.5s ease forwards; }
+@keyframes fsMsgOut { from{opacity:1;transform:translateX(0)} to{opacity:0;transform:translateX(12px)} }
+.fs-msg-bubble { background:rgba(10,10,20,0.72); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.08); border-radius:12px 4px 12px 12px; padding:6px 11px 7px; max-width:100%; word-break:break-word; text-align:right; }
+.fs-msg-bubble.fs-me { background:rgba(232,255,71,0.12); border-color:rgba(232,255,71,0.2); }
+.fs-msg-name { font-size:10px; font-weight:700; margin-bottom:2px; }
+.fs-msg-bubble:not(.fs-me) .fs-msg-name { color:#8fa0ff; }
+.fs-msg-bubble.fs-me .fs-msg-name { color:var(--accent); }
+.fs-msg-text { font-size:13px; line-height:1.4; color:rgba(255,255,255,0.92); }
+.fs-sys-msg { font-size:11px; color:rgba(255,255,255,0.4); text-align:right; font-style:italic; padding:2px 4px; }
+
+#fsChatInput { display:none; position:absolute; bottom:128px; right:14px; width:270px; z-index:40; opacity:0; transition:opacity 0.3s; pointer-events:none; }
+:fullscreen #fsChatInput, :-webkit-full-screen #fsChatInput { display:flex; }
+#fsChatInput.show { opacity:1; pointer-events:all; }
+.fs-chat-input-row { display:flex; gap:6px; align-items:center; width:100%; }
+.fs-chat-textarea { flex:1; background:rgba(10,10,20,0.8); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border:1px solid rgba(255,255,255,0.15); border-radius:10px; padding:9px 12px; color:#fff; font-family:'DM Sans',sans-serif; font-size:13px; outline:none; resize:none; max-height:60px; transition:border-color 0.2s; }
+.fs-chat-textarea:focus { border-color:rgba(232,255,71,0.5); }
+.fs-chat-textarea::placeholder { color:rgba(255,255,255,0.35); }
+.fs-send-btn { background:var(--accent); border:none; border-radius:10px; padding:9px 11px; cursor:pointer; font-size:14px; color:#0a0a0f; transition:all 0.15s; flex-shrink:0; }
+.fs-send-btn:hover { box-shadow:0 0 12px rgba(232,255,71,0.4); }
+
+/* ── CHAT SIDE ── */
+.chat-side { width:300px; flex-shrink:0; display:flex; flex-direction:column; background:var(--chat-bg); border-left:1px solid var(--border); }
+.chat-header { padding:14px 16px; border-bottom:1px solid var(--border); font-family:'Syne',sans-serif; font-weight:700; font-size:14px; display:flex; align-items:center; gap:8px; flex-shrink:0; }
+.chat-dot { width:8px; height:8px; border-radius:50%; background:var(--accent); box-shadow:0 0 6px rgba(232,255,71,0.6); animation:pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.chat-messages { flex:1; overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:4px; scroll-behavior:smooth; }
+.chat-messages::-webkit-scrollbar { width:3px; }
+.chat-messages::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+.msg { animation:fadeIn 0.2s ease; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:none} }
+.msg-system { text-align:center; font-size:11px; color:var(--muted); padding:4px 0; font-style:italic; }
+.msg-bubble { background:var(--surface2); border:1px solid var(--border); border-radius:12px; padding:8px 11px; word-break:break-word; }
+.msg-bubble.me { background:rgba(232,255,71,0.08); border-color:rgba(232,255,71,0.2); align-self:flex-end; }
+.msg-name { font-size:11px; font-weight:600; margin-bottom:3px; }
+.msg-bubble.me .msg-name { color:var(--accent); }
+.msg-bubble:not(.me) .msg-name { color:#7b8ff0; }
+.msg-text { font-size:13px; line-height:1.4; }
+.chat-input-area { padding:10px; border-top:1px solid var(--border); display:flex; gap:7px; flex-shrink:0; }
+.chat-input { flex:1; background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:9px 13px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:13px; outline:none; resize:none; transition:border-color 0.2s; max-height:80px; }
+.chat-input:focus { border-color:rgba(232,255,71,0.4); }
+.send-btn { background:var(--accent); border:none; border-radius:10px; padding:9px 13px; cursor:pointer; font-size:15px; transition:all 0.15s; flex-shrink:0; }
+.send-btn:hover { box-shadow:0 4px 16px rgba(232,255,71,0.3); }
+.status-bar { padding:5px 16px; background:var(--surface); border-top:1px solid var(--border); font-size:11px; color:var(--muted); display:flex; align-items:center; gap:6px; flex-shrink:0; }
+.ws-indicator { width:6px; height:6px; border-radius:50%; background:#3ddc84; }
+.ws-indicator.disconnected { background:var(--accent2); }
+
+/* ── WebRTC status toast ── */
+#webrtcStatus { position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:10px 20px; font-size:13px; color:var(--text); z-index:200; display:none; align-items:center; gap:8px; box-shadow:0 8px 32px rgba(0,0,0,0.4); }
+#webrtcStatus.show { display:flex; }
+.webrtc-spin { width:14px; height:14px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.8s linear infinite; }
+@keyframes spin { to{transform:rotate(360deg)} }
+</style>
+</head>
+<body>
+
+<!-- ── JOIN SCREEN ── -->
+<div id="joinScreen">
+  <div class="join-card">
+    <div class="join-logo">watch<span>.</span>party</div>
+    <div class="join-sub">Sync videos with your friends in real time — 3 ways</div>
+    <div class="field">
+      <label>Your Name</label>
+      <input id="nameInput" type="text" placeholder="Enter your name..." maxlength="20">
+    </div>
+    <div class="field">
+      <label>Room ID</label>
+      <input id="roomInput" type="text" placeholder="e.g. movienight" value="movienight">
+    </div>
+    <div class="field" style="margin-bottom:4px;">
+      <label>Your Role</label>
+      <div class="role-toggle">
+        <button class="role-btn active" id="guestBtn" onclick="setRole('guest')">👀 Guest</button>
+        <button class="role-btn" id="hostBtn" onclick="setRole('host')">🎬 Host</button>
+      </div>
+    </div>
+    <div id="hostPasswordWrap">
+      <div class="field" style="margin-bottom:0;">
+        <label>Host Password</label>
+        <input id="hostPasswordInput" type="password" placeholder="Enter host password...">
+        <div class="pw-hint">🔒 Only one host per room allowed</div>
+      </div>
+    </div>
+    <button class="join-btn" onclick="joinRoom()">Join Watch Party →</button>
+  </div>
+</div>
+
+<!-- ── MAIN APP ── -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-logo">watch<span>.</span>party</div>
+    <div class="room-badge">Room: <strong id="roomLabel">—</strong></div>
+    <span class="mode-badge" id="modeBadge" style="display:none"></span>
+    <div class="members-row" id="membersRow"></div>
+    <button class="fs-btn" onclick="enterFullscreen()">⛶ Fullscreen</button>
+  </div>
+
+  <div class="main-area">
+    <!-- VIDEO SIDE -->
+    <div class="video-side" id="videoSide">
+
+      <!-- Host: pick a mode -->
+      <div id="modePicker">
+        <div class="mode-picker-title">How do you want to watch?</div>
+        <div class="mode-picker-sub">Choose a mode — your friends will sync automatically</div>
+        <div class="mode-cards">
+          <div class="mode-card local" onclick="selectMode('local')">
+            <span class="mode-icon">📂</span>
+            <div class="mode-name">Everyone's File</div>
+            <div class="mode-desc">Each person loads the same video file from their own computer.</div>
+            <span class="mode-tag">LOCAL FILES</span>
+          </div>
+          <div class="mode-card youtube" onclick="selectMode('youtube')">
+            <span class="mode-icon">▶️</span>
+            <div class="mode-name">YouTube Video</div>
+            <div class="mode-desc">Paste a YouTube URL. Everyone watches the same embedded video, perfectly synced.</div>
+            <span class="mode-tag">YOUTUBE</span>
+          </div>
+          <div class="mode-card webrtc" onclick="selectMode('webrtc')">
+            <span class="mode-icon">📡</span>
+            <div class="mode-name">Host Streams</div>
+            <div class="mode-desc">Host uploads once. Guests receive the video directly via peer-to-peer. No re-upload needed.</div>
+            <span class="mode-tag">WEBRTC P2P</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Guest: waiting for host to pick mode -->
+      <div id="guestWaiting" style="display:none; flex:1;">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:16px;">
+          <div class="waiting-icon">⏳</div>
+          <div class="waiting-title">Waiting for host…</div>
+          <div class="waiting-sub">The host is choosing how to watch</div>
+        </div>
+      </div>
+
+      <!-- YouTube URL entry (host) -->
+      <div id="ytEntry" style="display:none; flex:1;">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:18px;padding:32px;">
+          <div class="yt-icon">▶️</div>
+          <div class="yt-title">Paste a YouTube URL</div>
+          <div class="yt-input-row">
+            <input class="yt-input" id="ytUrlInput" type="text" placeholder="https://www.youtube.com/watch?v=...">
+            <button class="yt-load-btn" onclick="loadYouTube()">Load →</button>
+          </div>
+          <div class="yt-hint">Supports youtube.com and youtu.be links</div>
+        </div>
+      </div>
+
+      <!-- WebRTC host upload -->
+      <div id="webrtcUpload" style="display:none; flex:1;">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:16px;padding:32px;">
+          <div class="webrtc-icon">📡</div>
+          <div class="webrtc-title">Upload your video once</div>
+          <div class="webrtc-sub">Your file will stream directly to all guests via peer-to-peer. No server storage needed — guests download it live from you.</div>
+          <button class="webrtc-upload-btn" onclick="document.getElementById('webrtcFileInput').click()">Select Video File</button>
+          <input type="file" id="webrtcFileInput" accept="video/*">
+        </div>
+      </div>
+
+      <!-- Guest receiving via WebRTC -->
+      <div id="guestReceiving" style="display:none; flex:1;">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:32px;width:100%;">
+          <div style="font-size:48px;">📡</div>
+          <div class="recv-title">Receiving video from host…</div>
+          <div class="recv-pct" id="recvPct">0%</div>
+          <div class="progress-track" style="width:100%;max-width:400px;">
+            <div class="progress-fill-bar" id="recvBar"></div>
+          </div>
+          <div class="recv-detail" id="recvDetail">Connecting…</div>
+        </div>
+      </div>
+
+      <!-- Local mode upload -->
+      <div class="upload-area" id="localUploadArea" style="display:none;" onclick="document.getElementById('localFileInput').click()">
+        <div class="upload-icon">🎬</div>
+        <div class="upload-title">Load your copy of the video</div>
+        <div class="upload-sub">Click to select or drag & drop</div>
+        <div class="upload-sub" style="font-size:11px;margin-top:4px;">Everyone loads their own local copy</div>
+      </div>
+      <input type="file" id="localFileInput" accept="video/*">
+
+      <!-- The actual video player (hidden until loaded) -->
+      <div class="video-container" id="videoContainer">
+        <video id="videoEl" preload="metadata"></video>
+        <iframe id="ytPlayer" style="display:none;width:100%;height:100%;border:none;flex:1;"></iframe>
+
+        <!-- FS floating chat stream -->
+        <div id="fsChatStream"></div>
+        <!-- FS floating chat input -->
+        <div id="fsChatInput">
+          <div class="fs-chat-input-row">
+            <textarea class="fs-chat-textarea" id="fsChatTextarea" placeholder="Say something..." rows="1"></textarea>
+            <button class="fs-send-btn" onclick="fsSendChat()">➤</button>
+          </div>
+        </div>
+
+        <!-- Fullscreen overlay -->
+        <div class="fs-overlay" id="fsOverlay">
+          <div class="fs-emoji-row" id="fsEmojiRow"></div>
+          <div class="fs-progress" id="fsProgressBar">
+            <div class="fs-progress-fill" id="fsProgressFill" style="width:0%"></div>
+          </div>
+          <div class="fs-controls-row">
+            <button class="fs-ctrl-btn primary" id="fsPlayBtn" onclick="togglePlay()" disabled>▶ Play</button>
+            <button class="fs-ctrl-btn" id="fsSkipBackBtn" onclick="skip(-10)" disabled>⏮ 10s</button>
+            <button class="fs-ctrl-btn" id="fsSkipFwdBtn" onclick="skip(10)" disabled>10s ⏭</button>
+            <span class="fs-time" id="fsTimeDisplay">0:00 / 0:00</span>
+            <button class="fs-exit-btn" onclick="exitFullscreen()">✕ Exit</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Emoji strip -->
+      <div class="emoji-strip" id="emojiStrip">
+        <span class="emoji-strip-label">React</span>
+      </div>
+
+      <!-- Normal controls -->
+      <div class="controls" id="controlsBar">
+        <div class="progress-bar" id="progressBar">
+          <div class="progress-fill" id="progressFill" style="width:0%"></div>
+        </div>
+        <div class="controls-row">
+          <button class="ctrl-btn primary" id="playBtn" onclick="togglePlay()" disabled>▶ Play</button>
+          <button class="ctrl-btn" id="skipBackBtn" onclick="skip(-10)" disabled>⏮ 10s</button>
+          <button class="ctrl-btn" id="skipFwdBtn" onclick="skip(10)" disabled>10s ⏭</button>
+          <span class="time-display" id="timeDisplay">0:00 / 0:00</span>
+          <span class="host-label" id="hostLabel"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHAT SIDE -->
+    <div class="chat-side">
+      <div class="chat-header"><div class="chat-dot"></div> Live Chat</div>
+      <div class="chat-messages" id="chatMessages"></div>
+      <div class="chat-input-area">
+        <textarea class="chat-input" id="chatInput" placeholder="Say something..." rows="1"></textarea>
+        <button class="send-btn" onclick="sendChat()">➤</button>
+      </div>
+      <div class="status-bar">
+        <div class="ws-indicator" id="wsIndicator"></div>
+        <span id="statusText">Connecting…</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- WebRTC status toast -->
+<div id="webrtcStatus">
+  <div class="webrtc-spin"></div>
+  <span id="webrtcStatusText">Connecting peers…</span>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════════════════
+// CONFIG
+// ════════════════════════════════════════════════════════════════════════════
+const HOST_PASSWORD = 'zen 99';
+const EMOJIS = ['😂','❤️','🔥','👏','😮','😭','🎉','💯','🤣','👀','😍','🥺','😱','🙌','💀','✨','🤩','😤'];
+const CHUNK_SIZE = 64 * 1024; // 64KB WebRTC data channel chunks
+
+// ════════════════════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════════════════════
+let ws = null, myName = '', myRoom = '', isHost = false, selectedRole = 'guest';
+let myClientId = null;
+let currentMode = null; // 'local' | 'youtube' | 'webrtc'
+let fsHideTimer = null;
+
+// YouTube
+let ytPlayer = null, ytReady = false, ytVideoId = null;
+let ytPolling = null;
+
+// WebRTC (host side: one RTCPeerConnection per guest)
+const hostPeers = {}; // guestId -> { pc, channel }
+let hostVideoFile = null;
+
+// WebRTC (guest side: one RTCPeerConnection to host)
+let guestPc = null, guestChannel = null;
+let guestChunks = [], guestTotalBytes = 0, guestReceivedBytes = 0, guestFileReady = false;
+
+// ════════════════════════════════════════════════════════════════════════════
+// EMOJI STRIPS
+// ════════════════════════════════════════════════════════════════════════════
+(function buildEmojis() {
+  const strip = document.getElementById('emojiStrip');
+  const fsRow  = document.getElementById('fsEmojiRow');
+  EMOJIS.forEach(em => {
+    const b = document.createElement('button');
+    b.className='emo-btn'; b.textContent=em; b.onclick=()=>sendEmoji(em);
+    strip.appendChild(b);
+    const fb = document.createElement('button');
+    fb.className='fs-emo-btn'; fb.textContent=em; fb.onclick=()=>sendEmoji(em);
+    fsRow.appendChild(fb);
+  });
+})();
+
+// ════════════════════════════════════════════════════════════════════════════
+// JOIN
+// ════════════════════════════════════════════════════════════════════════════
+function setRole(r) {
+  selectedRole = r;
+  document.getElementById('hostBtn').classList.toggle('active', r==='host');
+  document.getElementById('guestBtn').classList.toggle('active', r==='guest');
+  document.getElementById('hostPasswordWrap').classList.toggle('visible', r==='host');
+}
+setRole('guest');
+
+function joinRoom() {
+  const name = document.getElementById('nameInput').value.trim() || 'Anonymous';
+  const room = document.getElementById('roomInput').value.trim() || 'default';
+  if (selectedRole === 'host') {
+    const pw = document.getElementById('hostPasswordInput').value;
+    if (pw !== HOST_PASSWORD) {
+      const inp = document.getElementById('hostPasswordInput');
+      inp.value=''; inp.placeholder='❌ Wrong password'; inp.classList.add('error');
+      setTimeout(()=>{ inp.classList.remove('error'); inp.placeholder='Enter host password...'; }, 1500);
+      return;
+    }
+  }
+  myName=name; myRoom=room; isHost=(selectedRole==='host');
+  document.getElementById('roomLabel').textContent = myRoom;
+  document.getElementById('joinScreen').style.display = 'none';
+  document.getElementById('app').classList.add('visible');
+  connectWS();
+}
+document.addEventListener('keydown', e => {
+  if (e.key==='Enter' && document.getElementById('joinScreen').style.display!=='none') joinRoom();
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// WEBSOCKET
+// ════════════════════════════════════════════════════════════════════════════
+function connectWS() {
+  const proto = location.protocol==='https:'?'wss':'ws';
+  ws = new WebSocket(`${proto}://${location.host}?room=${encodeURIComponent(myRoom)}&name=${encodeURIComponent(myName)}&host=${isHost?1:0}`);
+  ws.onopen  = () => setStatus(true, 'Connected');
+  ws.onmessage = e => handleMsg(JSON.parse(e.data));
+  ws.onclose = () => { setStatus(false,'Disconnected – reconnecting…'); setTimeout(connectWS, 3000); };
+  ws.onerror = () => ws.close();
+}
+function wsSend(obj) { if (ws && ws.readyState===1) ws.send(JSON.stringify(obj)); }
+function setStatus(ok, text) {
+  document.getElementById('wsIndicator').className = 'ws-indicator'+(ok?'':' disconnected');
+  document.getElementById('statusText').textContent = text;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// MESSAGE HANDLER
+// ════════════════════════════════════════════════════════════════════════════
+function handleMsg(msg) {
+  if (msg.type==='init') {
+    myClientId = msg.clientId;
+    isHost = msg.isHost;
+    renderMembers(msg.members);
+    showInitialUI(msg.mode, msg.ytVideoId);
+  }
+  if (msg.type==='members')   renderMembers(msg.members);
+  if (msg.type==='chat')      addChatMsg(msg.name, msg.text, msg.name===myName);
+  if (msg.type==='system')    addSysMsg(msg.text);
+  if (msg.type==='emoji')     spawnEmoji(msg.emoji);
+
+  if (msg.type==='mode-set') {
+    currentMode = msg.mode;
+    updateModeBadge(msg.mode);
+    if (!isHost) applyModeForGuest(msg.mode, msg.ytVideoId);
+    if (isHost && msg.mode==='webrtc') showWebRTCHostUpload();
+  }
+
+  if (msg.type==='control') {
+    if (!isHost) applyControl(msg.playing, msg.currentTime);
+    syncPlayPauseLabel(msg.playing);
+  }
+  if (msg.type==='seek') {
+    if (!isHost) applySeek(msg.currentTime);
+  }
+
+  // WebRTC signaling
+  if (msg.type==='webrtc:ready' && !isHost) {
+    // Host is ready — we initiate offer to host? No — host offers to each guest.
+    // This is handled via webrtc:new-guest on the host side.
+    // Guest just waits for offer.
+  }
+  if (msg.type==='webrtc:new-guest' && isHost) {
+    initiateHostOffer(msg.guestId, msg.guestName);
+  }
+  if (msg.type==='webrtc:offer' && !isHost) {
+    handleGuestReceiveOffer(msg.offer, msg.from);
+  }
+  if (msg.type==='webrtc:answer' && isHost) {
+    const peer = hostPeers[msg.from];
+    if (peer) peer.pc.setRemoteDescription(new RTCSessionDescription(msg.answer));
+  }
+  if (msg.type==='webrtc:ice') {
+    if (isHost) {
+      const peer = hostPeers[msg.from];
+      if (peer) peer.pc.addIceCandidate(new RTCIceCandidate(msg.candidate)).catch(()=>{});
+    } else {
+      if (guestPc) guestPc.addIceCandidate(new RTCIceCandidate(msg.candidate)).catch(()=>{});
+    }
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// UI ROUTING
+// ════════════════════════════════════════════════════════════════════════════
+function showInitialUI(mode, ytId) {
+  if (mode) {
+    currentMode = mode;
+    updateModeBadge(mode);
+    if (isHost) {
+      if (mode==='local') showLocalUpload();
+      else if (mode==='youtube') showYouTubeEntry();
+      else if (mode==='webrtc') showWebRTCHostUpload();
+    } else {
+      applyModeForGuest(mode, ytId);
+    }
+  } else {
+    if (isHost) showModePicker();
+    else showGuestWaiting();
+  }
+}
+
+function hideAll() {
+  document.getElementById('modePicker').style.display    = 'none';
+  document.getElementById('guestWaiting').style.display  = 'none';
+  document.getElementById('ytEntry').style.display       = 'none';
+  document.getElementById('webrtcUpload').style.display  = 'none';
+  document.getElementById('guestReceiving').style.display= 'none';
+  document.getElementById('localUploadArea').style.display='none';
+  document.getElementById('videoContainer').classList.remove('visible');
+  document.getElementById('controlsBar').style.display   = 'none';
+  document.getElementById('emojiStrip').style.display    = 'none';
+}
+
+function showModePicker() {
+  hideAll();
+  document.getElementById('modePicker').style.display='flex';
+}
+function showGuestWaiting() {
+  hideAll();
+  document.getElementById('guestWaiting').style.display='flex';
+}
+function showLocalUpload() {
+  hideAll();
+  document.getElementById('localUploadArea').style.display='flex';
+}
+function showYouTubeEntry() {
+  hideAll();
+  document.getElementById('ytEntry').style.display='flex';
+}
+function showWebRTCHostUpload() {
+  hideAll();
+  document.getElementById('webrtcUpload').style.display='flex';
+}
+function showGuestReceiving() {
+  hideAll();
+  document.getElementById('guestReceiving').style.display='flex';
+}
+function showPlayer() {
+  hideAll();
+  document.getElementById('videoContainer').classList.add('visible');
+  document.getElementById('controlsBar').style.display='flex';
+  document.getElementById('emojiStrip').style.display='flex';
+  updateControls();
+}
+
+function applyModeForGuest(mode, ytId) {
+  if (mode==='local') showLocalUpload();
+  else if (mode==='youtube') {
+    ytVideoId = ytId;
+    showPlayer();
+    loadYouTubePlayer(ytId);
+  }
+  else if (mode==='webrtc') showGuestReceiving();
+}
+
+function updateModeBadge(mode) {
+  const b = document.getElementById('modeBadge');
+  const labels = { local:'📂 Local', youtube:'▶ YouTube', webrtc:'📡 P2P Stream' };
+  b.textContent = labels[mode] || mode;
+  b.className = 'mode-badge ' + mode;
+  b.style.display = 'inline-block';
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// MODE SELECTION (host)
+// ════════════════════════════════════════════════════════════════════════════
+function selectMode(mode) {
+  currentMode = mode;
+  wsSend({ type:'set-mode', mode });
+  updateModeBadge(mode);
+  if (mode==='local') showLocalUpload();
+  else if (mode==='youtube') showYouTubeEntry();
+  else if (mode==='webrtc') showWebRTCHostUpload();
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// LOCAL MODE
+// ════════════════════════════════════════════════════════════════════════════
+const localUploadArea = document.getElementById('localUploadArea');
+const localFileInput  = document.getElementById('localFileInput');
+
+localFileInput.addEventListener('change', e => loadLocalVideo(e.target.files[0]));
+localUploadArea.addEventListener('dragover', e => { e.preventDefault(); localUploadArea.classList.add('drag'); });
+localUploadArea.addEventListener('dragleave', () => localUploadArea.classList.remove('drag'));
+localUploadArea.addEventListener('drop', e => {
+  e.preventDefault(); localUploadArea.classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('video/')) loadLocalVideo(f);
+});
+
+const videoEl = document.getElementById('videoEl');
+
+function loadLocalVideo(file) {
+  if (!file) return;
+  videoEl.src = URL.createObjectURL(file);
+  showPlayer();
+  switchToVideoEl();
+  addSysMsg('Video loaded: ' + file.name);
+}
+
+function switchToVideoEl() {
+  videoEl.style.display = 'block';
+  document.getElementById('ytPlayer').style.display = 'none';
+}
+function switchToYT() {
+  videoEl.style.display = 'none';
+  document.getElementById('ytPlayer').style.display = 'block';
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// YOUTUBE MODE
+// ════════════════════════════════════════════════════════════════════════════
+function extractYouTubeId(url) {
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+    /^([a-zA-Z0-9_-]{11})$/
+  ];
+  for (const p of patterns) {
+    const m = url.match(p);
+    if (m) return m[1];
+  }
+  return null;
+}
+
+function loadYouTube() {
+  const url = document.getElementById('ytUrlInput').value.trim();
+  const id = extractYouTubeId(url);
+  if (!id) {
+    alert('Could not extract YouTube video ID. Please paste a valid YouTube URL.');
+    return;
+  }
+  ytVideoId = id;
+  wsSend({ type:'set-mode', mode:'youtube', ytVideoId: id });
+  updateModeBadge('youtube');
+  showPlayer();
+  loadYouTubePlayer(id);
+}
+
+// YouTube IFrame API global callback
+window.onYouTubeIframeAPIReady = function() { ytReady = true; };
+
+function loadYouTubePlayer(videoId) {
+  switchToYT();
+  // Use a simple iframe instead of the JS API for reliability
+  const iframe = document.getElementById('ytPlayer');
+  iframe.src = `https://www.youtube.com/embed/${videoId}?enablejsapi=1&autoplay=0&controls=0&rel=0&modestbranding=1`;
+  iframe.style.display = 'block';
+  iframe.style.flex    = '1';
+
+  // Use postMessage to control playback
+  ytPlayerLoaded = true;
+  addSysMsg('YouTube video loaded. Host controls play/pause.');
+  startYTPolling(iframe);
+}
+
+let ytPlayerLoaded = false;
+
+function ytCommand(func, args) {
+  const iframe = document.getElementById('ytPlayer');
+  if (!iframe.src) return;
+  iframe.contentWindow.postMessage(JSON.stringify({
+    event: 'command', func, args: args || []
+  }), '*');
+}
+
+function startYTPolling(iframe) {
+  clearInterval(ytPolling);
+  // Poll currentTime via postMessage listener
+  // YT postMessage state
+  window.addEventListener('message', handleYTMessage);
+  ytPolling = setInterval(() => {
+    iframe.contentWindow.postMessage(JSON.stringify({ event:'listening' }), '*');
+    iframe.contentWindow.postMessage(JSON.stringify({ event:'command', func:'getCurrentTime', args:[] }), '*');
+  }, 1000);
+}
+
+let lastYTTime = 0;
+function handleYTMessage(e) {
+  try {
+    const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+    if (data.event === 'infoDelivery' && data.info) {
+      if (data.info.currentTime !== undefined) {
+        lastYTTime = data.info.currentTime;
+        updateTimeDom(lastYTTime, data.info.duration || 0);
+      }
+    }
+  } catch {}
+}
+
+// YT playback via postMessage
+function ytPlay()  { ytCommand('playVideo');  }
+function ytPause() { ytCommand('pauseVideo'); }
+function ytSeek(t) { ytCommand('seekTo', [t, true]); }
+
+// ════════════════════════════════════════════════════════════════════════════
+// WEBRTC MODE — HOST SIDE
+// ════════════════════════════════════════════════════════════════════════════
+document.getElementById('webrtcFileInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  hostVideoFile = file;
+  addSysMsg('File selected: ' + file.name + ' (' + fmtBytes(file.size) + ')');
+  // Show the video locally for host to preview
+  videoEl.src = URL.createObjectURL(file);
+  showPlayer();
+  switchToVideoEl();
+  // Tell server we're ready for guests to connect
+  wsSend({ type:'webrtc:ready' });
+  addSysMsg('Waiting for guests to connect via P2P…');
+  showWebRTCToast('Ready — guests connecting…');
+});
+
+function fmtBytes(n) {
+  if (n < 1024*1024) return (n/1024).toFixed(1)+'KB';
+  return (n/(1024*1024)).toFixed(1)+'MB';
+}
+
+function showWebRTCToast(text) {
+  const el = document.getElementById('webrtcStatus');
+  document.getElementById('webrtcStatusText').textContent = text;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 4000);
+}
+
+// ─── ICE / STUN / TURN config ────────────────────────────────────────────────
+// Free public TURN servers (open-relay.metered.ca) for cross-network WebRTC.
+// These work through NAT, firewalls, and over ngrok. No signup needed.
+const RTC_CONFIG = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    {
+      urls: 'turn:openrelay.metered.ca:80',
+      username: 'openrelayproject',
+      credential: 'openrelayproject'
+    },
+    {
+      urls: 'turn:openrelay.metered.ca:443',
+      username: 'openrelayproject',
+      credential: 'openrelayproject'
+    },
+    {
+      urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+      username: 'openrelayproject',
+      credential: 'openrelayproject'
+    }
+  ],
+  iceCandidatePoolSize: 10,
+};
+
+async function initiateHostOffer(guestId, guestName) {
+  if (!hostVideoFile) { console.warn('Host has no video file yet'); return; }
+  console.log('Creating offer for guest:', guestId, guestName);
+
+  const pc = new RTCPeerConnection(RTC_CONFIG);
+  const channel = pc.createDataChannel('video', { ordered: true });
+  hostPeers[guestId] = { pc, channel, sent: 0 };
+
+  channel.onopen = () => {
+    console.log(`Data channel open to ${guestName}, starting stream`);
+    showWebRTCToast(`Streaming to ${guestName}…`);
+    streamFileToGuest(guestId);
+  };
+
+  channel.onerror = e => console.error('Channel error', e);
+
+  pc.onicecandidate = e => {
+    if (e.candidate) {
+      wsSend({ type:'webrtc:ice', to: guestId, candidate: e.candidate });
+    }
+  };
+
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  wsSend({ type:'webrtc:offer', to: guestId, offer: pc.localDescription });
+}
+
+async function streamFileToGuest(guestId) {
+  const peer = hostPeers[guestId];
+  if (!peer || !hostVideoFile) return;
+  const { channel } = peer;
+
+  const totalSize = hostVideoFile.size;
+  // First send metadata
+  channel.send(JSON.stringify({ type:'meta', size: totalSize, name: hostVideoFile.name, mime: hostVideoFile.type || 'video/mp4' }));
+
+  let offset = 0;
+  const reader = new FileReader();
+
+  function sendNextChunk() {
+    if (offset >= totalSize) {
+      channel.send(JSON.stringify({ type:'done' }));
+      console.log('File fully streamed to', guestId);
+      return;
+    }
+    // Throttle: only send if buffer has room
+    if (channel.bufferedAmount > 4 * 1024 * 1024) {
+      setTimeout(sendNextChunk, 50);
+      return;
+    }
+    const slice = hostVideoFile.slice(offset, offset + CHUNK_SIZE);
+    reader.onload = e => {
+      channel.send(e.target.result);
+      offset += CHUNK_SIZE;
+      sendNextChunk();
+    };
+    reader.readAsArrayBuffer(slice);
+  }
+
+  sendNextChunk();
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// WEBRTC MODE — GUEST SIDE
+// ════════════════════════════════════════════════════════════════════════════
+async function handleGuestReceiveOffer(offer, hostId) {
+  console.log('Received offer from host', hostId);
+  showGuestReceiving();
+
+  const pc = new RTCPeerConnection(RTC_CONFIG);
+  guestPc = pc;
+  guestChunks = []; guestTotalBytes = 0; guestReceivedBytes = 0;
+
+  pc.ondatachannel = e => {
+    guestChannel = e.channel;
+    guestChannel.binaryType = 'arraybuffer';
+
+    guestChannel.onmessage = ev => {
+      if (typeof ev.data === 'string') {
+        const ctrl = JSON.parse(ev.data);
+        if (ctrl.type === 'meta') {
+          guestTotalBytes = ctrl.size;
+          addSysMsg('Receiving: ' + ctrl.name + ' (' + fmtBytes(ctrl.size) + ')');
+        } else if (ctrl.type === 'done') {
+          finalizeGuestVideo();
+        }
+      } else {
+        // Binary chunk
+        guestChunks.push(ev.data);
+        guestReceivedBytes += ev.data.byteLength;
+        updateRecvProgress();
+      }
+    };
+    guestChannel.onerror = e => { addSysMsg('⚠️ Transfer error: ' + e); };
+  };
+
+  pc.onicecandidate = e => {
+    if (e.candidate) wsSend({ type:'webrtc:ice', to: hostId, candidate: e.candidate });
+  };
+
+  await pc.setRemoteDescription(new RTCSessionDescription(offer));
+  const answer = await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+  wsSend({ type:'webrtc:answer', to: hostId, answer: pc.localDescription });
+}
+
+function updateRecvProgress() {
+  if (!guestTotalBytes) return;
+  const pct = Math.min(100, Math.round((guestReceivedBytes / guestTotalBytes) * 100));
+  document.getElementById('recvPct').textContent = pct + '%';
+  document.getElementById('recvBar').style.width = pct + '%';
+  document.getElementById('recvDetail').textContent =
+    fmtBytes(guestReceivedBytes) + ' / ' + fmtBytes(guestTotalBytes);
+}
+
+function finalizeGuestVideo() {
+  addSysMsg('✅ Video received! Preparing player…');
+  document.getElementById('recvPct').textContent = '100%';
+  document.getElementById('recvBar').style.width = '100%';
+  document.getElementById('recvDetail').textContent = 'Complete! Loading player…';
+
+  const blob = new Blob(guestChunks, { type: 'video/mp4' });
+  guestChunks = [];
+  guestFileReady = true;
+
+  videoEl.src = URL.createObjectURL(blob);
+  videoEl.oncanplay = () => {
+    showPlayer();
+    switchToVideoEl();
+    addSysMsg('Ready to watch! Host will start playback.');
+  };
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// PLAYBACK CONTROLS (unified — works for both HTML video + YT)
+// ════════════════════════════════════════════════════════════════════════════
+function togglePlay() {
+  if (!isHost) return;
+  const isYT = currentMode === 'youtube';
+
+  if (isYT) {
+    // Toggle YT (we track play state manually)
+    const wasPlaying = document.getElementById('playBtn').textContent.includes('Pause');
+    if (wasPlaying) {
+      ytPause();
+      wsSend({ type:'control', playing:false, currentTime: lastYTTime });
+      syncPlayPauseLabel(false);
+    } else {
+      ytPlay();
+      wsSend({ type:'control', playing:true, currentTime: lastYTTime });
+      syncPlayPauseLabel(true);
+    }
+  } else {
+    const playing = videoEl.paused;
+    playing ? videoEl.play() : videoEl.pause();
+    wsSend({ type:'control', playing, currentTime: videoEl.currentTime });
+    syncPlayPauseLabel(playing);
+  }
+}
+
+function skip(s) {
+  if (!isHost) return;
+  const isYT = currentMode === 'youtube';
+  if (isYT) {
+    const t = Math.max(0, lastYTTime + s);
+    ytSeek(t);
+    wsSend({ type:'seek', currentTime: t });
+  } else {
+    videoEl.currentTime = Math.max(0, videoEl.currentTime + s);
+    wsSend({ type:'seek', currentTime: videoEl.currentTime });
+  }
+}
+
+function applyControl(playing, currentTime) {
+  if (currentMode==='youtube') {
+    ytSeek(currentTime);
+    playing ? ytPlay() : ytPause();
+  } else {
+    videoEl.currentTime = currentTime;
+    playing ? videoEl.play() : videoEl.pause();
+  }
+}
+
+function applySeek(currentTime) {
+  if (currentMode==='youtube') ytSeek(currentTime);
+  else videoEl.currentTime = currentTime;
+}
+
+function syncPlayPauseLabel(playing) {
+  const lbl = playing ? '⏸ Pause' : '▶ Play';
+  document.getElementById('playBtn').textContent   = lbl;
+  document.getElementById('fsPlayBtn').textContent = lbl;
+}
+
+function updateControls() {
+  const dis = !isHost;
+  ['playBtn','skipBackBtn','skipFwdBtn'].forEach(id => document.getElementById(id).disabled=dis);
+  ['fsPlayBtn','fsSkipBackBtn','fsSkipFwdBtn'].forEach(id => document.getElementById(id).disabled=dis);
+  const lbl = document.getElementById('hostLabel');
+  if (isHost) { lbl.textContent='🎬 You are Host'; lbl.className='host-label you'; }
+  else { lbl.textContent='👀 Guest – host controls'; lbl.className='host-label'; }
+}
+
+// Video time update
+videoEl.addEventListener('timeupdate', () => {
+  if (!videoEl.duration) return;
+  updateTimeDom(videoEl.currentTime, videoEl.duration);
+});
+
+function updateTimeDom(cur, dur) {
+  const pct = dur ? (cur/dur)*100+'%' : '0%';
+  const t = fmt(cur) + ' / ' + fmt(dur||0);
+  document.getElementById('progressFill').style.width   = pct;
+  document.getElementById('fsProgressFill').style.width = pct;
+  document.getElementById('timeDisplay').textContent   = t;
+  document.getElementById('fsTimeDisplay').textContent = t;
+}
+
+function seekFromBar(e) {
+  if (!isHost || currentMode==='youtube') return; // YT seek via skip() for now
+  if (!videoEl.duration) return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  videoEl.currentTime = ((e.clientX-rect.left)/rect.width)*videoEl.duration;
+  wsSend({ type:'seek', currentTime: videoEl.currentTime });
+}
+document.getElementById('progressBar').addEventListener('click', seekFromBar);
+document.getElementById('fsProgressBar').addEventListener('click', seekFromBar);
+
+// ════════════════════════════════════════════════════════════════════════════
+// FULLSCREEN
+// ════════════════════════════════════════════════════════════════════════════
+const videoSide = document.getElementById('videoSide');
+const fsOverlay = document.getElementById('fsOverlay');
+const fsChatInput = document.getElementById('fsChatInput');
+
+function enterFullscreen() {
+  if (videoSide.requestFullscreen) videoSide.requestFullscreen();
+  else if (videoSide.webkitRequestFullscreen) videoSide.webkitRequestFullscreen();
+}
+function exitFullscreen() {
+  if (document.exitFullscreen) document.exitFullscreen();
+  else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+}
+
+function showFsControls() {
+  fsOverlay.classList.add('show');
+  fsChatInput.classList.add('show');
+  clearTimeout(fsHideTimer);
+  fsHideTimer = setTimeout(() => {
+    if (document.activeElement===document.getElementById('fsChatTextarea')) return;
+    fsOverlay.classList.remove('show');
+    fsChatInput.classList.remove('show');
+  }, 2800);
+}
+
+videoSide.addEventListener('mousemove', () => {
+  if (!document.fullscreenElement && !document.webkitFullscreenElement) return;
+  showFsControls();
+});
+
+videoSide.addEventListener('click', e => {
+  if (!document.fullscreenElement && !document.webkitFullscreenElement) return;
+  if (e.target.closest('.fs-overlay') || e.target.closest('#fsChatInput')) return;
+  fsOverlay.classList.contains('show') ? (fsOverlay.classList.remove('show'), fsChatInput.classList.remove('show')) : showFsControls();
+});
+
+document.getElementById('fsChatTextarea').addEventListener('focus', () => {
+  clearTimeout(fsHideTimer); fsOverlay.classList.add('show'); fsChatInput.classList.add('show');
+});
+document.getElementById('fsChatTextarea').addEventListener('blur', () => {
+  fsHideTimer = setTimeout(() => { fsOverlay.classList.remove('show'); fsChatInput.classList.remove('show'); }, 2000);
+});
+document.addEventListener('fullscreenchange', () => {
+  if (!document.fullscreenElement) { fsOverlay.classList.remove('show'); fsChatInput.classList.remove('show'); }
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// EMOJI
+// ════════════════════════════════════════════════════════════════════════════
+function sendEmoji(emoji) {
+  wsSend({ type:'emoji', emoji });
+  spawnEmoji(emoji);
+}
+function spawnEmoji(emoji) {
+  const container = document.getElementById('videoContainer');
+  if (!container.classList.contains('visible')) return;
+  const el = document.createElement('div');
+  el.className = 'floating-emoji';
+  el.textContent = emoji;
+  el.style.left = (5 + Math.random()*80) + '%';
+  el.style.bottom = '90px';
+  el.style.setProperty('--dur', (2.6+Math.random()*1.2).toFixed(2)+'s');
+  container.appendChild(el);
+  el.addEventListener('animationend', () => el.remove());
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// CHAT
+// ════════════════════════════════════════════════════════════════════════════
+const FS_MAX = 6, FS_LIFETIME = 7000;
+
+function sendChat() {
+  const inp = document.getElementById('chatInput');
+  const t = inp.value.trim(); if (!t) return;
+  wsSend({ type:'chat', text:t }); inp.value='';
+}
+function fsSendChat() {
+  const inp = document.getElementById('fsChatTextarea');
+  const t = inp.value.trim(); if (!t) return;
+  wsSend({ type:'chat', text:t }); inp.value='';
+}
+document.getElementById('chatInput').addEventListener('keydown', e => {
+  if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+});
+document.getElementById('fsChatTextarea').addEventListener('keydown', e => {
+  if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); fsSendChat(); }
+});
+
+function addChatMsg(name, text, me) {
+  const box = document.getElementById('chatMessages');
+  const d = document.createElement('div');
+  d.className='msg msg-bubble'+(me?' me':'');
+  d.innerHTML=`<div class="msg-name">${esc(name)}</div><div class="msg-text">${esc(text)}</div>`;
+  box.appendChild(d); box.scrollTop=box.scrollHeight;
+  addFsChatMsg(name, text, me);
+}
+function addSysMsg(text) {
+  const box = document.getElementById('chatMessages');
+  const d = document.createElement('div');
+  d.className='msg msg-system'; d.textContent=text;
+  box.appendChild(d); box.scrollTop=box.scrollHeight;
+  addFsSysMsg(text);
+}
+function addFsChatMsg(name, text, me) {
+  const stream = document.getElementById('fsChatStream');
+  const wrap = document.createElement('div');
+  wrap.className='fs-chat-msg';
+  wrap.innerHTML=`<div class="fs-msg-bubble${me?' fs-me':''}">
+    <div class="fs-msg-name">${esc(name)}</div>
+    <div class="fs-msg-text">${esc(text)}</div>
+  </div>`;
+  stream.appendChild(wrap);
+  while (stream.children.length > FS_MAX) stream.removeChild(stream.firstChild);
+  setTimeout(() => {
+    wrap.classList.add('fading');
+    wrap.addEventListener('animationend', ()=>wrap.remove(), {once:true});
+  }, FS_LIFETIME);
+}
+function addFsSysMsg(text) {
+  const stream = document.getElementById('fsChatStream');
+  const d = document.createElement('div');
+  d.className='fs-chat-msg';
+  d.innerHTML=`<div class="fs-sys-msg">${esc(text)}</div>`;
+  stream.appendChild(d);
+  while (stream.children.length > FS_MAX) stream.removeChild(stream.firstChild);
+  setTimeout(() => {
+    d.classList.add('fading');
+    d.addEventListener('animationend',()=>d.remove(),{once:true});
+  }, FS_LIFETIME);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// MEMBERS
+// ════════════════════════════════════════════════════════════════════════════
+function renderMembers(members) {
+  document.getElementById('membersRow').innerHTML = members.map(m =>
+    `<div class="member-chip${m.isHost?' host':''}">
+      <div class="member-dot"></div>${esc(m.name)}
+      ${m.isHost?'<span class="host-tag">HOST</span>':''}
+    </div>`
+  ).join('');
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// UTILS
+// ════════════════════════════════════════════════════════════════════════════
+function fmt(s) { const m=Math.floor(s/60); return m+':'+Math.floor(s%60).toString().padStart(2,'0'); }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+</script>
+</body>
+</html>
