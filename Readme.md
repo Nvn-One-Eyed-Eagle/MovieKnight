@@ -1,7 +1,7 @@
 # 🎬 Watch Party — Local Setup Guide
 
-A real-time synced video watching app with live chat. No internet needed after setup — runs 100% on your local network. 
-To view over internet use <b>ngrok<b> 
+A real-time synced video watching app with live chat. No internet needed after setup — runs 100% on your local network. <br> 
+To view over internet use ----<b>ngrok<b>----
 
 ---
 
