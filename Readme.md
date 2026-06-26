@@ -3,6 +3,18 @@
 A real-time synced video watching app with live chat. No internet needed after setup — runs 100% on your local network. <br> 
 To view over internet use ----<b>ngrok<b>----
 
+## Screenshots
+
+![Home](https://raw.githubusercontent.com/Nvn-One-Eyed-Eagle/portfolio/main/assets/MovieKnight1.png)
+
+![Watch Party](https://raw.githubusercontent.com/Nvn-One-Eyed-Eagle/portfolio/main/assets/MovieKnight2.png)
+
+![Chat](https://raw.githubusercontent.com/Nvn-One-Eyed-Eagle/portfolio/main/assets/MovieKnight3.png)
+
+![Friends](https://raw.githubusercontent.com/Nvn-One-Eyed-Eagle/portfolio/main/assets/MovieKnight4.png)
+
+![Player](https://raw.githubusercontent.com/Nvn-One-Eyed-Eagle/portfolio/main/assets/MovieKnight5.png)
+
 ---
 
 ## Requirements
