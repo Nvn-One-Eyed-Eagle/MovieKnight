@@ -15,6 +15,9 @@ To view over internet use ----<b>ngrok<b>----
 
 ![Player](https://raw.githubusercontent.com/Nvn-One-Eyed-Eagle/portfolio/main/assets/MovieKnight5.png)
 
+<a href="https://github.com/Nvn-One-Eyed-Eagle/portfolio/blob/main/assets/MovieKnight_vid.mp4">
+  ▶️ Watch Demo Video
+</a>
 ---
 
 ## Requirements
